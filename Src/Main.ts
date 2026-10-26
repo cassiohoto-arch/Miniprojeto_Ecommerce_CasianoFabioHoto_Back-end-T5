@@ -1,139 +1,363 @@
+// main.ts
+// Inicialização da aplicação e demonstração das funcionalidades.
+//
+// Compilar com: tsc
+// Executar com: node Dist/main.js
 
-//Demonstração das funcionalidades.
-import { pedido, Resultado } from "./types";
+import { Pedido, Resultado } from "./types";
+import {
+  cadastrarProduto,
+  listarProdutos,
+  buscarProdutoPorId,
+  buscarProdutosPorNome,
+  filtrarProdutosPorCategoria,
+  atualizarProduto,
+  removerProduto,
+} from "./produtos";
+import {
+  cadastrarCliente,
+  listarClientes,
+  buscarClientePorId,
+} from "./clientes";
+import {
+  adicionarAoCarrinho,
+  alterarQuantidade,
+  removerDoCarrinho,
+  listarItensCarrinho,
+  calcularTotalCarrinho,
+} from "./carrinho";
+import {
+  finalizarPedido,
+  listarPedidos,
+  listarPedidosPorCliente,
+  resumoVendas,
+} from "./pedidos";
 
-import { cadastrarProduto, listarProdutos, buscarProdutoPorId, buscarProdutoPorNome, atualizarProduto, removerProduto,
- } from "./produtos";
- import { cadastrarCliente, listarCliente, buscarClientePorId } from "./clientes";
- import {
-    adicionarAoCarrinho,
-    alterarQuantidade,
-    removerDoCarrinho,
-    listarItensCarrinho,
-    calcularTotalCarrinho,
- } from "./carrinho";
- import {
-    finalizarPedido,
-    listarPedidos,
-    listarPedidosPorCliente,
-    gerarResumoVendas,
- } from "./pedidos";
+// ------------------------------------------------------------
+// Funções de apoio para mostrar os resultados no console
+// ------------------------------------------------------------
 
- function imprimirPedido(pedido: Pedido): void {
-    const cliente = buscarClientePorId(pedido.clienteId);
+// Formata um número como dinheiro: 2500 vira "R$ 2.500,00".
+function formatarMoeda(valor: number): string {
+  return valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+// Mostra o resultado de uma operação.
+// Se deu certo, mostra os dados. Se deu errado, mostra o erro.
+function mostrar<T>(resultado: Resultado<T>, texto: (dados: T) => string): void {
+  if (resultado.sucesso) {
+    console.log(`  [OK]   ${texto(resultado.dados)}`);
+  } else {
+    console.log(`  [ERRO] ${resultado.erro}`);
+  }
+}
+
+// Mostra um pedido completo no console.
+function mostrarPedido(pedido: Pedido): void {
+  const cliente = buscarClientePorId(pedido.clienteId);
+
+  let nomeCliente = "desconhecido";
+  if (cliente !== undefined) {
+    nomeCliente = cliente.nome;
+  }
+
+  console.log(`\n  Pedido #${pedido.id} - Cliente: ${nomeCliente}`);
+  console.log(`  Data: ${pedido.data.toLocaleString("pt-BR")}`);
+
+  for (const item of pedido.itens) {
     console.log(
-        '\n Pedido #${pedido.id} | Cliente: ${cliente ? clinete.nome : "desconhecido"} | ${pedido.data.toLocaleString("pt-BR")}',
+      `    ${item.quantidade} x ${item.nomeProduto} = ${formatarMoeda(item.subtotal)}`,
     );
+  }
+
+  console.log(`    TOTAL: ${formatarMoeda(pedido.total)}`);
 }
 
-//PRUDUTOS
-cadastrarProduto({ id: 1, nome: "Notebook ", categoria: "informatica", preco: 2.500, estoque: 15 }),
-cadastrarProduto({ id: 3, nome: "Mouse", categoria: "informatica", preco:100.00 , estoque: 20 }),
-cadastrarProduto({ id: 4, nome: "teclado", categoria: "informatica", preco: 150.00, estoque: 10 }),
-cadastrarProduto({ id: 5, nome: "monitor", categoria: "informatica", preco: 800.00, estoque: 4 }),
-cadastrarProduto({ id: 6, nome: "impressora", categoria: "informatica", preco: 300.00, estoque: 5 }),
-cadastrarProduto({ id: 7, nome: "webcan", categoria: "informatica", preco: 250.00, estoque: 12 }),
+// ============================================================
+// 1. CATÁLOGO INICIAL
+// ============================================================
+console.log("\n=== 1. Catálogo inicial ===");
 
-
-//Produto com id repetido
-cadastrarProduto({ id: 1, nome: "Produto com id repetido", categoria: "Acessórios", preco: 50, estoque: 2 }),
-  (p) => `cadastrado: ${p.nome}`,
-);
-
-//Listar produtos
-listarProdutos().forEach((p) => {
+for (const produto of listarProdutos()) {
   console.log(
-    `  #${p.id} ${p.nome} | ${p.categoria} | ${formatarMoeda(p.preco)} | estoque: ${p.estoque}`,
+    `  #${produto.id} ${produto.nome} - ${produto.categoria} - ${formatarMoeda(produto.preco)} - estoque: ${produto.estoque}`,
   );
-});
+}
 
-//Buscar produto por Id
-const produto2 = buscarProdutoPorId(2);
-console.log(produto2 ? `  Encontrado: #${produto2.id} ${produto2.nome}` : "  Produto não encontrado.");
+// ============================================================
+// 2. CADASTRO DE PRODUTOS
+// ============================================================
+console.log("\n=== 2. Cadastro de produtos ===");
 
-//cadastro cliente valido
-logResultado(
-  cadastrarCliente({ id: 1, nome: "Ana Souza", email: "ana.souza@email.com" }),
-  (c) => `#${c.id} ${c.nome} — ${c.email}`,
-);
-logResultado(
-  cadastrarCliente({ id: 2, nome: "Bruno Lima", email: "bruno.lima@email.com" }),
-  (c) => `#${c.id} ${c.nome} — ${c.email}`,
-);
-
-//cadastro cliente invalido
-logResultado(
-  cadastrarCliente({ id: 1, nome: "Outra Pessoa", email: "outra@email.com" }),
-  (c) => `cadastrado: ${c.nome}`,
+// Cadastro válido, sem informar id.
+// O sistema gera o próximo id livre.
+mostrar(
+  cadastrarProduto({
+    nome: "SSD 1TB",
+    categoria: "informatica",
+    preco: 450,
+    estoque: 6,
+  }),
+  (p) => `cadastrado: #${p.id} ${p.nome}`,
 );
 
-//listar cliente
-listarClientes().forEach((c)) => console.log(' #${c.id} ${c.nome} - ${c.email}'));
+// Erro esperado: id já utilizado.
+mostrar(
+  cadastrarProduto({
+    id: 1,
+    nome: "Produto repetido",
+    categoria: "informatica",
+    preco: 10,
+    estoque: 1,
+  }),
+  (p) => `cadastrado: #${p.id} ${p.nome}`,
+);
 
-//Buscar cliente por id
-const cliente1 = buscarClientePorId(1);
-console.log(cliente1 ? ' Encontrado: ${cliente1.nome}' : "Cliente não encontrado.");
+// Erro esperado: preço igual a zero.
+mostrar(
+  cadastrarProduto({
+    nome: "Produto sem preço",
+    categoria: "informatica",
+    preco: 0,
+    estoque: 1,
+  }),
+  (p) => `cadastrado: #${p.id} ${p.nome}`,
+);
 
-//Carrinho
-//Adicionar item
-logResultado(adicionarAoCarrinho(1, 1, 1), () => "Notebook adicionado (1 un.)");
-logResultado(adicionarAoCarrinho(1, 2, 2), () => "Mouse adicionado (2 un.)");
-logResultado(adicionarAoCarrinho(1, 3, 1), () => "Teclado adicionado (1 un.)");
-logResultado(adicionarAoCarrinho(1, 2, 1), () => "Mouse adicionado novamente (soma, não duplica)");
+// Erro esperado: nome vazio.
+mostrar(
+  cadastrarProduto({
+    nome: "   ",
+    categoria: "informatica",
+    preco: 100,
+    estoque: 1,
+  }),
+  (p) => `cadastrado: #${p.id} ${p.nome}`,
+);
 
+// ============================================================
+// 3. BUSCA E FILTRO DE PRODUTOS
+// ============================================================
+console.log("\n=== 3. Busca e filtro ===");
 
-//Itens do carrinho
-listarItensCarrinho(1).forEach((item) => {
-  console.log(
-    `  #${item.produto.id} ${item.produto.nome} | ${item.quantidade} x ${formatarMoeda(item.produto.preco)} = ${formatarMoeda(item.subtotal)}`,
-  );
-});
-console.log(`  TOTAL DO CARRINHO: ${formatarMoeda(calcularTotalCarrinho(1))}`);
-
-//Alterar item
-logResultado(alterarQuantidade(1, 3, 2), () => "quantidade alterada");
-console.log(`  TOTAL DO CARRINHO: ${formatarMoeda(calcularTotalCarrinho(1))}`);
-
-//Remover item
-logResultado(removerDoCarrinho(1, 3), () => "teclado removido");
-console.log(`  TOTAL DO CARRINHO: ${formatarMoeda(calcularTotalCarrinho(1))}`);
-
-//Pedidos
-//Finalizar pedidos
-const pedido1 = finalizarPedido(1);
-if (pedido1.sucesso) {
-  imprimirPedido(pedido1.dados);
+const porId = buscarProdutoPorId(2);
+if (porId !== undefined) {
+  console.log(`  Busca por id 2: #${porId.id} ${porId.nome}`);
 } else {
-  console.log(`  [ERRO] ${pedido1.erro}`);
+  console.log("  Busca por id 2: não encontrado");
 }
 
-//Baixar estoque
-[1, 2, 3, 4].forEach((id) => {
-  const p = buscarProdutoPorId(id);
-  if (p) console.log(`  #${p.id} ${p.nome}: ${p.estoque} un.`);
-});
+const porNome = buscarProdutosPorNome("mouse");
+console.log(`  Busca por nome "mouse": ${porNome.length} resultado(s)`);
+for (const p of porNome) {
+  console.log(`    #${p.id} ${p.nome}`);
+}
 
-//Carrinho vazio
-logResultado(finalizarPedido(1), (p) => `pedido #${p.id} criado`);
+const porCategoria = filtrarProdutosPorCategoria("acessorios");
+console.log(`  Filtro "acessorios": ${porCategoria.length} produto(s)`);
+for (const p of porCategoria) {
+  console.log(`    #${p.id} ${p.nome}`);
+}
 
-//Listar pedidos
-listarPedidos().forEach((p) => {
-  const cliente = buscarClientePorId(p.clienteId);
+// ============================================================
+// 4. ATUALIZAÇÃO E REMOÇÃO DE PRODUTOS
+// ============================================================
+console.log("\n=== 4. Atualização e remoção ===");
+
+mostrar(
+  atualizarProduto(2, { preco: 120 }),
+  (p) => `#${p.id} ${p.nome} agora custa ${formatarMoeda(p.preco)}`,
+);
+
+// Erro esperado: produto que não existe.
+mostrar(
+  atualizarProduto(999, { preco: 10 }),
+  (p) => `#${p.id} atualizado`,
+);
+
+mostrar(removerProduto(10), (p) => `removido: #${p.id} ${p.nome}`);
+
+// Erro esperado: remover o mesmo produto de novo.
+mostrar(removerProduto(10), (p) => `removido: #${p.id} ${p.nome}`);
+
+// ============================================================
+// 5. CLIENTES
+// ============================================================
+console.log("\n=== 5. Clientes ===");
+
+for (const cliente of listarClientes()) {
+  console.log(`  #${cliente.id} ${cliente.nome} - ${cliente.email}`);
+}
+
+// Novo cliente, sem informar id.
+mostrar(
+  cadastrarCliente({ nome: "Marina Alves", email: "marina@email.com" }),
+  (c) => `cadastrado: #${c.id} ${c.nome}`,
+);
+
+// Erro esperado: e-mail já cadastrado.
+mostrar(
+  cadastrarCliente({ nome: "Outra Pessoa", email: "anacosta@icloud.com" }),
+  (c) => `cadastrado: #${c.id} ${c.nome}`,
+);
+
+// Erro esperado: nome com menos de 3 letras.
+mostrar(
+  cadastrarCliente({ nome: "Jo", email: "jo@email.com" }),
+  (c) => `cadastrado: #${c.id} ${c.nome}`,
+);
+
+// ============================================================
+// 6. CARRINHO DO CLIENTE 1
+// ============================================================
+console.log("\n=== 6. Carrinho do cliente 1 ===");
+
+mostrar(adicionarAoCarrinho(1, 1, 1), () => "Notebook adicionado (1 un.)");
+mostrar(adicionarAoCarrinho(1, 2, 2), () => "Mouse adicionado (2 un.)");
+
+// Mesmo produto de novo: soma em vez de duplicar a linha.
+mostrar(
+  adicionarAoCarrinho(1, 2, 1),
+  () => "Mouse adicionado de novo (agora 3 un.)",
+);
+
+// Erro esperado: Monitor tem apenas 5 em estoque.
+mostrar(adicionarAoCarrinho(1, 4, 100), () => "Monitor adicionado");
+
+// Erro esperado: produto que não existe.
+mostrar(adicionarAoCarrinho(1, 999, 1), () => "Produto fantasma adicionado");
+
+// Erro esperado: quantidade zero.
+mostrar(adicionarAoCarrinho(1, 1, 0), () => "Adicionado com 0 un.");
+
+console.log("\n  Itens do carrinho:");
+for (const item of listarItensCarrinho(1)) {
   console.log(
-    `  Pedido #${p.id} | ${cliente ? cliente.nome : "?"} | ${p.itens.length} item(ns) | ${formatarMoeda(p.total)}`,
+    `    #${item.produto.id} ${item.produto.nome}: ${item.quantidade} x ${formatarMoeda(item.produto.preco)} = ${formatarMoeda(item.subtotal)}`,
   );
-});
+}
+console.log(`    TOTAL: ${formatarMoeda(calcularTotalCarrinho(1))}`);
 
-//Resumo vendas
-const resumo = gerarResumoVendas();
-console.log(`  Pedidos: ${resumo.totalPedidos}`);
+// ============================================================
+// 7. ALTERAR E REMOVER ITENS
+// ============================================================
+console.log("\n=== 7. Alterar e remover itens ===");
+
+mostrar(alterarQuantidade(1, 2, 5), () => "Mouse agora com 5 un.");
+console.log(`  Total: ${formatarMoeda(calcularTotalCarrinho(1))}`);
+
+mostrar(removerDoCarrinho(1, 2), () => "Mouse removido");
+console.log(`  Total: ${formatarMoeda(calcularTotalCarrinho(1))}`);
+
+// ============================================================
+// 8. FINALIZAR PEDIDO
+// ============================================================
+console.log("\n=== 8. Finalizar pedido ===");
+
+// Erro esperado: cliente que não existe.
+mostrar(finalizarPedido(99), (p) => `pedido #${p.id} criado`);
+
+const resultado1 = finalizarPedido(1);
+if (resultado1.sucesso) {
+  mostrarPedido(resultado1.dados);
+} else {
+  console.log(`  [ERRO] ${resultado1.erro}`);
+}
+
+// Erro esperado: o carrinho já foi esvaziado no pedido anterior.
+mostrar(finalizarPedido(1), (p) => `pedido #${p.id} criado`);
+
+// ============================================================
+// 9. ESTOQUE DEPOIS DA COMPRA
+// ============================================================
+console.log("\n=== 9. Estoque depois da compra ===");
+
+for (const id of [1, 2, 3, 4]) {
+  const produto = buscarProdutoPorId(id);
+  if (produto !== undefined) {
+    console.log(`  #${produto.id} ${produto.nome}: ${produto.estoque} un.`);
+  }
+}
+
+// ============================================================
+// 10. SEGUNDO PEDIDO (OUTRO CLIENTE)
+// ============================================================
+console.log("\n=== 10. Segundo pedido (cliente 2) ===");
+
+mostrar(adicionarAoCarrinho(2, 3, 2), () => "Teclado adicionado (2 un.)");
+
+const resultado2 = finalizarPedido(2);
+if (resultado2.sucesso) {
+  mostrarPedido(resultado2.dados);
+} else {
+  console.log(`  [ERRO] ${resultado2.erro}`);
+}
+
+// ============================================================
+// 11. CONSULTA DE PEDIDOS
+// ============================================================
+console.log("\n=== 11. Pedidos registrados ===");
+
+for (const pedido of listarPedidos()) {
+  const cliente = buscarClientePorId(pedido.clienteId);
+
+  let nomeCliente = "desconhecido";
+  if (cliente !== undefined) {
+    nomeCliente = cliente.nome;
+  }
+
+  console.log(
+    `  Pedido #${pedido.id} | ${nomeCliente} | ${pedido.itens.length} item(ns) | ${formatarMoeda(pedido.total)}`,
+  );
+}
+
+const pedidosDoCliente1 = listarPedidosPorCliente(1);
+console.log(`  Pedidos do cliente 1: ${pedidosDoCliente1.length}`);
+
+// ============================================================
+// 12. RESUMO DE VENDAS
+// ============================================================
+console.log("\n=== 12. Resumo de vendas ===");
+
+const resumo = resumoVendas();
+console.log(`  Pedidos: ${resumo.quantidadePedidos}`);
 console.log(`  Total vendido: ${formatarMoeda(resumo.totalVendido)}`);
-console.log(`  Ticket médio: ${formatarMoeda(resumo.ticketMedio)}`);
-console.log("  Produtos mais vendidos:");
-resumo.produtosMaisVendidos.forEach((p) => {
-  console.log(`    #${p.produtoId} ${p.nome} — ${p.quantidade} un.`);
-});
 
-//Alterar preço
-logResultado(atualizarProduto(1, { preco: 4299.9 }), (p) => `novo preço: ${formatarMoeda(p.preco)}`);
+let ticketMedio = 0;
+if (resumo.quantidadePedidos > 0) {
+  ticketMedio = resumo.totalVendido / resumo.quantidadePedidos;
+}
+console.log(`  Ticket médio: ${formatarMoeda(ticketMedio)}`);
 
+// ============================================================
+// 13. PREÇO ANTIGO NÃO MUDA
+// ============================================================
+console.log("\n=== 13. Preço do pedido não muda ===");
+
+const pedidosAntes = listarPedidos();
+const pedidoAntigo = pedidosAntes[0];
+
+if (pedidoAntigo !== undefined) {
+  const totalAntes = pedidoAntigo.total;
+
+  mostrar(
+    atualizarProduto(1, { preco: 9999 }),
+    (p) => `novo preço do catálogo: ${formatarMoeda(p.preco)}`,
+  );
+
+  const totalDepois = pedidoAntigo.total;
+
+  console.log(`  Pedido #${pedidoAntigo.id} antes: ${formatarMoeda(totalAntes)}`);
+  console.log(`  Pedido #${pedidoAntigo.id} depois: ${formatarMoeda(totalDepois)}`);
+
+  if (totalAntes === totalDepois) {
+    console.log("  [OK] O pedido manteve o preço da compra.");
+  } else {
+    console.log("  [ERRO] O pedido mudou de valor.");
+  }
+}
+
+console.log("\n=== Fim da demonstração ===");
